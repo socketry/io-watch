@@ -1,5 +1,5 @@
 class IO
-	module FSEvent
+	module Monitor
 		VERSION = '0.0.0'
 	end
 end

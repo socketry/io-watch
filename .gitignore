@@ -3,3 +3,8 @@
 /gems.locked
 /.covered.db
 /external
+
+*.o
+ext/bin
+ext/io-monitor
+ext/Makefile
