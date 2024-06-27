@@ -8,6 +8,33 @@ enum {
 	DEBUG = 0,
 };
 
+static
+int IO_Monitor_path_prefix(const char *path, const char *prefix) {
+	size_t path_size = strlen(path);
+	size_t prefix_size = strlen(prefix);
+	
+	if (path_size < prefix_size) {
+		return 0;
+	}
+	
+	return strncmp(path, prefix, prefix_size) == 0;
+}
+
+static
+ssize_t IO_Monitor_find_path(struct IO_Monitor *monitor, const char *path) {
+	size_t index = 0;
+	
+	while (index < monitor->size) {
+		if (IO_Monitor_path_prefix(path, monitor->paths[index])) {
+			return index;
+		}
+		
+		index += 1;
+	}
+	
+	return -1;
+}
+
 // Function to handle filesystem events
 void IO_Monitor_FSEvent_callback(
 	ConstFSEventStreamRef streamRef,
@@ -24,7 +51,7 @@ void IO_Monitor_FSEvent_callback(
 		if (DEBUG) fprintf(stderr, "Event: %s\n", eventPaths[i]);
 		
 		// Find the index of the path in the paths array
-		ssize_t index = IO_Monitor_find(monitor, eventPaths[i]);
+		ssize_t index = IO_Monitor_find_path(monitor, eventPaths[i]);
 		
 		if (index != -1) {
 			// Output event data as newline-delimited JSON

@@ -10,5 +10,4 @@ struct IO_Monitor {
 	const char **paths;
 };
 
-ssize_t IO_Monitor_find(struct IO_Monitor *monitor, const char *path);
 void IO_Monitor_watch(struct IO_Monitor *monitor);
