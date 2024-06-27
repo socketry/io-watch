@@ -121,6 +121,19 @@ void IO_Monitor_Watch_Array_add_subdirectory(int fd, struct IO_Monitor_Watch_Arr
 	IO_Monitor_Watch_Array_scan(fd, watch_array, path, watch.index);
 }
 
+void IO_Monitor_Watch_Array_remove(int fd, struct IO_Monitor_Watch_Array *watch_array, size_t index) {
+	struct IO_Monitor_Watch watch = watch_array->watches[index];
+	
+	inotify_rm_watch(fd, watch.watch_descriptor);
+	free(watch.path);
+	
+	// Replace the removed item with the last one.
+	watch_array->size--;
+	if (index < watch_array->size) {
+		watch_array->watches[index] = watch_array->watches[watch_array->size];
+	}
+}
+
 void IO_Monitor_watch(struct IO_Monitor *monitor) {
 	int fd = inotify_init1(IN_NONBLOCK);
 	if (fd == -1) {
@@ -161,6 +174,8 @@ void IO_Monitor_watch(struct IO_Monitor *monitor) {
 				// If a new directory is created, add a watch for it
 				if (event->mask & IN_CREATE && event->mask & IN_ISDIR) {
 					IO_Monitor_Watch_Array_add_subdirectory(fd, &watch_array, watch_array.watches[index], event->name);
+				} else if (event->mask & IN_DELETE_SELF) {
+					IO_Monitor_Watch_Array_remove(fd, &watch_array, index);
 				}
 			} else {
 				fprintf(stderr, "Watch descriptor not found: %d\n", event->wd);
