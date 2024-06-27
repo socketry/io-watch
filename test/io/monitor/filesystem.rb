@@ -30,6 +30,8 @@ describe IO::Monitor::Filesystem do
 		
 		event = changes.pop
 		expect(event[:path]).to be == root
+	ensure
+		thread.kill
 	end
 	
 	it 'should detect a new directory and changes within it' do
@@ -56,6 +58,8 @@ describe IO::Monitor::Filesystem do
 		
 		event = changes.pop
 		expect(event[:path]).to be == root
+	ensure
+		thread.kill
 	end
 	
 	it "should detect directory additions and removals" do
@@ -81,5 +85,7 @@ describe IO::Monitor::Filesystem do
 		
 		event = changes.pop
 		expect(event[:path]).to be == root
+	ensure
+		thread.kill
 	end
 end

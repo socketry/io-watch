@@ -75,7 +75,7 @@ void IO_Monitor_Watch_Array_watch(int fd, struct IO_Monitor_Watch_Array *watch_a
 	
 	IO_Monitor_Watch_Array_add(watch_array, watch_descriptor, path, index);
 	
-	if (DEBUG) printf("Added watch: %s\n", path);
+	if (DEBUG) fprintf(stderr, "Added watch: %s\n", path);
 }
 
 void IO_Monitor_Watch_Array_scan(int fd, struct IO_Monitor_Watch_Array *watch_array, const char *root, int index) {
@@ -124,6 +124,8 @@ void IO_Monitor_Watch_Array_add_subdirectory(int fd, struct IO_Monitor_Watch_Arr
 void IO_Monitor_Watch_Array_remove(int fd, struct IO_Monitor_Watch_Array *watch_array, size_t index) {
 	struct IO_Monitor_Watch watch = watch_array->watches[index];
 	
+	if (DEBUG) fprintf(stderr, "Removing watch: %s\n", watch.path);
+	
 	inotify_rm_watch(fd, watch.watch_descriptor);
 	free(watch.path);
 	
@@ -132,6 +134,37 @@ void IO_Monitor_Watch_Array_remove(int fd, struct IO_Monitor_Watch_Array *watch_
 	if (index < watch_array->size) {
 		watch_array->watches[index] = watch_array->watches[watch_array->size];
 	}
+}
+
+static
+void IO_Monitor_INotify_print_event(struct inotify_event *event) {
+	fprintf(stderr, "Event: wd=%d", event->wd);
+	
+	uint32_t mask = event->mask;
+	if (mask & IN_ACCESS) fprintf(stderr, " ACCESS");
+	if (mask & IN_MODIFY) fprintf(stderr, " MODIFY");
+	if (mask & IN_ATTRIB) fprintf(stderr, " ATTRIB");
+	if (mask & IN_CLOSE_WRITE) fprintf(stderr, " CLOSE_WRITE");
+	if (mask & IN_CLOSE_NOWRITE) fprintf(stderr, " CLOSE_NOWRITE");
+	if (mask & IN_OPEN) fprintf(stderr, " OPEN");
+	if (mask & IN_MOVED_FROM) fprintf(stderr, " MOVED_FROM");
+	if (mask & IN_MOVED_TO) fprintf(stderr, " MOVED_TO");
+	if (mask & IN_CREATE) fprintf(stderr, " CREATE");
+	if (mask & IN_DELETE) fprintf(stderr, " DELETE");
+	if (mask & IN_DELETE_SELF) fprintf(stderr, " DELETE_SELF");
+	if (mask & IN_MOVE_SELF) fprintf(stderr, " MOVE_SELF");
+	if (mask & IN_UNMOUNT) fprintf(stderr, " UNMOUNT");
+	if (mask & IN_Q_OVERFLOW) fprintf(stderr, " Q_OVERFLOW");
+	if (mask & IN_IGNORED) fprintf(stderr, " IGNORED");
+	if (mask & IN_ISDIR) fprintf(stderr, " ISDIR");
+	if (mask & IN_ONESHOT) fprintf(stderr, " ONESHOT");
+	if (mask & IN_ALL_EVENTS) fprintf(stderr, " ALL_EVENTS");
+	
+	if (event->len > 0) {
+		fprintf(stderr, " name=%s", event->name);
+	}
+	
+	fprintf(stderr, "\n");
 }
 
 void IO_Monitor_watch(struct IO_Monitor *monitor) {
@@ -165,7 +198,8 @@ void IO_Monitor_watch(struct IO_Monitor *monitor) {
 
 		for (ssize_t offset = 0; offset < result;) {
 			struct inotify_event *event = (struct inotify_event *) &buffer[offset];
-
+			if (DEBUG) IO_Monitor_INotify_print_event(event);
+			
 			ssize_t index = IO_Monitor_Watch_Array_find(&watch_array, event->wd);
 
 			if (index != -1) {
@@ -174,7 +208,7 @@ void IO_Monitor_watch(struct IO_Monitor *monitor) {
 				// If a new directory is created, add a watch for it
 				if (event->mask & IN_CREATE && event->mask & IN_ISDIR) {
 					IO_Monitor_Watch_Array_add_subdirectory(fd, &watch_array, watch_array.watches[index], event->name);
-				} else if (event->mask & IN_DELETE_SELF) {
+				} else if (event->mask & IN_IGNORED) {
 					IO_Monitor_Watch_Array_remove(fd, &watch_array, index);
 				}
 			} else {
