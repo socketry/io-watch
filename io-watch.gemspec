@@ -16,6 +16,7 @@ Gem::Specification.new do |spec|
 	spec.homepage = "https://github.com/socketry/io-watch"
 	
 	spec.metadata = {
+		"documentation_uri" => "https://socketry.github.io/io-watch/",
 		"source_code_uri" => "https://github.com/socketry/io-watch.git",
 	}
 	

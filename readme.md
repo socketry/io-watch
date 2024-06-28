@@ -6,7 +6,9 @@ Monitor the file-system for changes.
 
 ## Usage
 
-Please see the [project documentation](https://socketry.github.io/io-watch) for more details.
+Please see the [project documentation](https://socketry.github.io/io-watch/) for more details.
+
+  - [Getting Started](https://socketry.github.io/io-watch/guides/getting-started/index) - This guide explains how to use the `io-watch` gem for watching files and directories for changes.
 
 ## Contributing
 
