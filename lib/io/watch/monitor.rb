@@ -27,7 +27,7 @@ class IO
 			#
 			# @parameter roots [Array(String)] The list of root directories to watch. Changes to these directories, and their children, recursively, will be reported.
 			# @parameter latency [Float] The latency to use when watching the filesystem.
-			def initialize(roots, latency = 0.1)
+			def initialize(roots, latency: nil)
 				@roots = roots
 				@latency = latency
 			end
@@ -42,7 +42,11 @@ class IO
 			# @yields {|event| ...} Yielded for each event that occurs.
 			#   @parameter event [Hash] The event that occurred.
 			def run
-				environment = {'IO_WATCH_LATENCY' => @latency.to_s}
+				environment = {}
+				if @latency
+					environment['IO_WATCH_LATENCY'] = @latency.to_s
+				end
+				
 				IO.pipe do |input, output|
 					pid = Process.spawn(environment, self.class.command_path, *@roots, out: output)
 					output.close
