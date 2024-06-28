@@ -1,16 +1,16 @@
 require 'json'
 
 class IO
-	module Monitor
-		class Filesystem
+	module Watch
+		class Monitor
 			def self.command_path
-				if extensions_path = Gem.loaded_specs['io-monitor']&.extensions_dir
+				if extensions_path = Gem.loaded_specs['io-watch']&.extensions_dir
 					if File.exist?(extensions_path)
-						return File.join(extensions_path, 'io-monitor')
+						return File.join(extensions_path, 'io-watch')
 					end
 				end
 				
-				return File.join(__dir__, '../../../ext/bin/io-monitor')
+				return File.join(__dir__, '../../../ext/bin/io-watch')
 			end
 			
 			COMMAND_PATH = self.command_path
@@ -21,7 +21,7 @@ class IO
 			end
 			
 			def run
-				environment = {'IO_MONITOR_LATENCY' => @latency.to_s}
+				environment = {'IO_WATCH_LATENCY' => @latency.to_s}
 				IO.pipe do |input, output|
 					pid = Process.spawn(environment, self.class.command_path, *@roots, out: output)
 					output.close

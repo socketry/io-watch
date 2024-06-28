@@ -6,5 +6,5 @@
 
 *.o
 ext/bin
-ext/io-monitor
+ext/io-watch
 ext/Makefile

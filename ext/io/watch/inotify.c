@@ -1,4 +1,4 @@
-#include "monitor.h"
+#include "watch.h"
 
 #include <sys/inotify.h>
 #include <limits.h>
@@ -14,42 +14,42 @@ enum {
 	DEBUG = 0,
 };
 
-struct IO_Monitor_Watch {
+struct IO_Watch_Watch {
 	int watch_descriptor;
 	char *path;
 	int index;
 };
 
-struct IO_Monitor_Watch_Array {
+struct IO_Watch_Watch_Array {
 	size_t size;
 	size_t capacity;
-	struct IO_Monitor_Watch *watches;
+	struct IO_Watch_Watch *watches;
 };
 
 #define BUFFER_SIZE (10 * (sizeof(struct inotify_event) + NAME_MAX + 1))
 
-void IO_Monitor_Watch_Array_initialize(struct IO_Monitor_Watch_Array *array) {
+void IO_Watch_Watch_Array_initialize(struct IO_Watch_Watch_Array *array) {
 	array->size = 0;
 	array->capacity = 16;
-	array->watches = malloc(array->capacity * sizeof(struct IO_Monitor_Watch));
+	array->watches = malloc(array->capacity * sizeof(struct IO_Watch_Watch));
 	if (!array->watches) {
 		perror("malloc");
 		exit(EXIT_FAILURE);
 	}
 }
 
-void IO_Monitor_Watch_Array_resize(struct IO_Monitor_Watch_Array *array) {
+void IO_Watch_Watch_Array_resize(struct IO_Watch_Watch_Array *array) {
 	array->capacity *= 2;
-	array->watches = realloc(array->watches, array->capacity * sizeof(struct IO_Monitor_Watch));
+	array->watches = realloc(array->watches, array->capacity * sizeof(struct IO_Watch_Watch));
 	if (!array->watches) {
 		perror("realloc");
 		exit(EXIT_FAILURE);
 	}
 }
 
-void IO_Monitor_Watch_Array_add(struct IO_Monitor_Watch_Array *array, int watch_descriptor, char *path, int index) {
+void IO_Watch_Watch_Array_add(struct IO_Watch_Watch_Array *array, int watch_descriptor, char *path, int index) {
 	if (array->size == array->capacity) {
-		IO_Monitor_Watch_Array_resize(array);
+		IO_Watch_Watch_Array_resize(array);
 	}
 	array->watches[array->size].watch_descriptor = watch_descriptor;
 	array->watches[array->size].path = path;
@@ -57,7 +57,7 @@ void IO_Monitor_Watch_Array_add(struct IO_Monitor_Watch_Array *array, int watch_
 	array->size++;
 }
 
-ssize_t IO_Monitor_Watch_Array_find(struct IO_Monitor_Watch_Array *array, int watch_descriptor) {
+ssize_t IO_Watch_Watch_Array_find(struct IO_Watch_Watch_Array *array, int watch_descriptor) {
 	for (size_t i = 0; i < array->size; i++) {
 		if (array->watches[i].watch_descriptor == watch_descriptor) {
 			return i;
@@ -66,19 +66,19 @@ ssize_t IO_Monitor_Watch_Array_find(struct IO_Monitor_Watch_Array *array, int wa
 	return -1;
 }
 
-void IO_Monitor_Watch_Array_watch(int fd, struct IO_Monitor_Watch_Array *watch_array, char *path, int index) {
+void IO_Watch_Watch_Array_watch(int fd, struct IO_Watch_Watch_Array *watch_array, char *path, int index) {
 	int watch_descriptor = inotify_add_watch(fd, path, IN_ALL_EVENTS);
 	if (watch_descriptor == -1) {
 		perror("inotify_add_watch");
 		exit(EXIT_FAILURE);
 	}
 	
-	IO_Monitor_Watch_Array_add(watch_array, watch_descriptor, path, index);
+	IO_Watch_Watch_Array_add(watch_array, watch_descriptor, path, index);
 	
 	if (DEBUG) fprintf(stderr, "Added watch: %s\n", path);
 }
 
-void IO_Monitor_Watch_Array_scan(int fd, struct IO_Monitor_Watch_Array *watch_array, const char *root, int index) {
+void IO_Watch_Watch_Array_scan(int fd, struct IO_Watch_Watch_Array *watch_array, const char *root, int index) {
 	DIR *dir = opendir(root);
 	if (!dir) {
 		perror("opendir");
@@ -102,8 +102,8 @@ void IO_Monitor_Watch_Array_scan(int fd, struct IO_Monitor_Watch_Array *watch_ar
 		}
 
 		if (S_ISDIR(statbuf.st_mode)) {
-			IO_Monitor_Watch_Array_watch(fd, watch_array, path, index);
-			IO_Monitor_Watch_Array_scan(fd, watch_array, path, index);
+			IO_Watch_Watch_Array_watch(fd, watch_array, path, index);
+			IO_Watch_Watch_Array_scan(fd, watch_array, path, index);
 		} else {
 			free(path);
 		}
@@ -112,17 +112,17 @@ void IO_Monitor_Watch_Array_scan(int fd, struct IO_Monitor_Watch_Array *watch_ar
 	closedir(dir);
 }
 
-void IO_Monitor_Watch_Array_add_subdirectory(int fd, struct IO_Monitor_Watch_Array *watch_array, struct IO_Monitor_Watch watch, const char *name) {
+void IO_Watch_Watch_Array_add_subdirectory(int fd, struct IO_Watch_Watch_Array *watch_array, struct IO_Watch_Watch watch, const char *name) {
 	size_t size = strlen(watch.path) + 1 + strlen(name) + 1;
 	char *path = malloc(size);
 	snprintf(path, size, "%s/%s", watch.path, name);
 
-	IO_Monitor_Watch_Array_watch(fd, watch_array, path, watch.index);
-	IO_Monitor_Watch_Array_scan(fd, watch_array, path, watch.index);
+	IO_Watch_Watch_Array_watch(fd, watch_array, path, watch.index);
+	IO_Watch_Watch_Array_scan(fd, watch_array, path, watch.index);
 }
 
-void IO_Monitor_Watch_Array_remove(int fd, struct IO_Monitor_Watch_Array *watch_array, size_t index) {
-	struct IO_Monitor_Watch watch = watch_array->watches[index];
+void IO_Watch_Watch_Array_remove(int fd, struct IO_Watch_Watch_Array *watch_array, size_t index) {
+	struct IO_Watch_Watch watch = watch_array->watches[index];
 	
 	if (DEBUG) fprintf(stderr, "Removing watch: %s\n", watch.path);
 	
@@ -137,7 +137,7 @@ void IO_Monitor_Watch_Array_remove(int fd, struct IO_Monitor_Watch_Array *watch_
 }
 
 static
-void IO_Monitor_INotify_print_event(struct inotify_event *event) {
+void IO_Watch_INotify_print_event(struct inotify_event *event) {
 	fprintf(stderr, "Event: wd=%d", event->wd);
 	
 	uint32_t mask = event->mask;
@@ -167,21 +167,21 @@ void IO_Monitor_INotify_print_event(struct inotify_event *event) {
 	fprintf(stderr, "\n");
 }
 
-void IO_Monitor_watch(struct IO_Monitor *monitor) {
+void IO_Watch_run(struct IO_Watch *watch) {
 	int fd = inotify_init1(IN_NONBLOCK);
 	if (fd == -1) {
 		perror("inotify_init1");
 		exit(EXIT_FAILURE);
 	}
 
-	struct IO_Monitor_Watch_Array watch_array;
-	IO_Monitor_Watch_Array_initialize(&watch_array);
+	struct IO_Watch_Watch_Array watch_array;
+	IO_Watch_Watch_Array_initialize(&watch_array);
 
-	for (size_t i = 0; i < monitor->size; i++) {
-		char *path = strdup(monitor->paths[i]);
+	for (size_t i = 0; i < watch->size; i++) {
+		char *path = strdup(watch->paths[i]);
 		
-		IO_Monitor_Watch_Array_watch(fd, &watch_array, path, i);
-		IO_Monitor_Watch_Array_scan(fd, &watch_array, path, i);
+		IO_Watch_Watch_Array_watch(fd, &watch_array, path, i);
+		IO_Watch_Watch_Array_scan(fd, &watch_array, path, i);
 	}
 
 	printf("{\"status\":\"started\"}\n");
@@ -198,18 +198,18 @@ void IO_Monitor_watch(struct IO_Monitor *monitor) {
 
 		for (ssize_t offset = 0; offset < result;) {
 			struct inotify_event *event = (struct inotify_event *) &buffer[offset];
-			if (DEBUG) IO_Monitor_INotify_print_event(event);
+			if (DEBUG) IO_Watch_INotify_print_event(event);
 			
-			ssize_t index = IO_Monitor_Watch_Array_find(&watch_array, event->wd);
+			ssize_t index = IO_Watch_Watch_Array_find(&watch_array, event->wd);
 
 			if (index != -1) {
 				printf("{\"index\":%d,\"mask\":%u}\n", watch_array.watches[index].index, event->mask);
 
 				// If a new directory is created, add a watch for it
 				if (event->mask & IN_CREATE && event->mask & IN_ISDIR) {
-					IO_Monitor_Watch_Array_add_subdirectory(fd, &watch_array, watch_array.watches[index], event->name);
+					IO_Watch_Watch_Array_add_subdirectory(fd, &watch_array, watch_array.watches[index], event->name);
 				} else if (event->mask & IN_IGNORED) {
-					IO_Monitor_Watch_Array_remove(fd, &watch_array, index);
+					IO_Watch_Watch_Array_remove(fd, &watch_array, index);
 				}
 			} else {
 				fprintf(stderr, "Watch descriptor not found: %d\n", event->wd);

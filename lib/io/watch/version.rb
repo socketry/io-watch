@@ -1,5 +1,5 @@
 class IO
-	module Monitor
+	module Watch
 		VERSION = '0.0.0'
 	end
 end
