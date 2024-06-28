@@ -10,13 +10,13 @@ class IO
 		# Represents a list of roots to watch for changes.
 		class Monitor
 			def self.command_path
-				if extensions_path = Gem.loaded_specs['io-watch']&.extensions_dir
-					if File.exist?(extensions_path)
-						return File.join(extensions_path, 'io-watch')
+				if extension_path = Gem.loaded_specs['io-watch']&.extension_dir
+					if File.exist?(extension_path)
+						return File.join(extension_path, 'bin', 'io-watch')
 					end
 				end
 				
-				return File.join(__dir__, '../../../ext/bin/io-watch')
+				return File.join(__dir__, '..', '..', '..', 'ext/io-watch')
 			end
 			
 			COMMAND_PATH = self.command_path
