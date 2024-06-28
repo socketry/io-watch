@@ -12,22 +12,41 @@ if command.first =~ /TERM|INT|KILL|QUIT|HUP/
 end
 
 if split = command.index('--')
-	roots = command.pop(split)
-	command.pop
+	roots = command.shift(split)
+	command.shift
 else
 	roots = [Dir.pwd]
 end
 
+Console.debug(self, "Watching", roots: roots, command: command, signal: signal)
+
+if command.empty?
+	Console.error(self, "No command given")
+	exit 1
+end
+
+if roots.empty?
+	Console.error(self, "No roots given")
+	exit 1
+end
+
 monitor = IO::Watch::Monitor.new(roots)
 
-monitor.run do
-	if pid
-		Console.info(self, "Killing command...", pid: pid)
-		Process.kill(signal, pid)
-		Process.wait(pid)
+begin
+	monitor.run do
+		if pid
+			Console.debug(self, "Killing command...", pid: pid)
+			Process.kill(signal, pid)
+			Process.wait(pid)
+		end
+		
+		Console.debug(self, "Starting command...")
+		pid = Process.spawn(*command)
+		Console.debug(self, "Started command", pid: pid)
 	end
-	
-	Console.info(self, "Starting command...")
-	pid = Process.spawn(*command)
-	Console.info(self, "Started command", pid: pid)
+rescue Interrupt
+	# Ignore.
+ensure
+	Process.kill('TERM', pid)
+	Process.wait(pid)
 end
