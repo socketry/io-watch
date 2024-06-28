@@ -22,7 +22,7 @@ We welcome contributions to this project.
 
 ### Developer Certificate of Origin
 
-In order to protect users of this project, we require all contributions to comply with the [Developer Certificate of Origin](https://developercertificate.org/). This ensures that all contributions are properly licensed and attributed. All contributors must agree to this document for their contributions to be accepted.
+In order to protect users of this project, we require all contributors to comply with the [Developer Certificate of Origin](https://developercertificate.org/). This ensures that all contributions are properly licensed and attributed.
 
 ### Community Guidelines
 
