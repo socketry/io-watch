@@ -1,7 +1,12 @@
-require 'io/monitor/filesystem'
+# frozen_string_literal: true
+
+# Released under the MIT License.
+# Copyright, 2024, by Samuel Williams.
+
+require 'io/watch/monitor'
 require 'tmpdir'
 
-describe IO::Monitor::Filesystem do
+describe IO::Watch::Monitor do
 	attr :root
 	
 	def around
@@ -16,13 +21,13 @@ describe IO::Monitor::Filesystem do
 		changes = Thread::Queue.new
 		
 		thread = Thread.new do
-			monitor = IO::Monitor::Filesystem.new([root])
-			monitor.run do |event|
+			watch = subject.new([root])
+			watch.run do |event|
 				changes << event
 			end
 		end
 		
-		# Wait for the monitor to start...
+		# Wait for the watch to start...
 		changes.pop
 		
 		test_file = File.join(root, 'test.txt')
@@ -38,13 +43,13 @@ describe IO::Monitor::Filesystem do
 		changes = Thread::Queue.new
 		
 		thread = Thread.new do
-			monitor = IO::Monitor::Filesystem.new([root])
-			monitor.run do |event|
+			watch = subject.new([root])
+			watch.run do |event|
 				changes << event
 			end
 		end
 		
-		# Wait for the monitor to start...
+		# Wait for the watch to start...
 		changes.pop
 		
 		test_dir = File.join(root, 'test')
@@ -66,13 +71,13 @@ describe IO::Monitor::Filesystem do
 		changes = Thread::Queue.new
 		
 		thread = Thread.new do
-			monitor = IO::Monitor::Filesystem.new([root])
-			monitor.run do |event|
+			watch = subject.new([root])
+			watch.run do |event|
 				changes << event
 			end
 		end
 		
-		# Wait for the monitor to start...
+		# Wait for the watch to start...
 		changes.pop
 		
 		test_dir = File.join(root, 'test')

@@ -27,11 +27,11 @@ case "$OS" in
 	Darwin)
 		echo "Using FSEvents (macOS)"
 		LDFLAGS="-framework CoreServices"
-		SOURCES="io/monitor.c io/monitor/fsevent.c"
+		SOURCES="io/watch.c io/watch/fsevent.c"
 		;;
 	Linux)
 		echo "Using inotify (Linux)"
-		SOURCES="io/monitor.c io/monitor/inotify.c"
+		SOURCES="io/watch.c io/watch/inotify.c"
 		;;
 	*)
 		echo "Unsupported platform: $OS"
@@ -41,7 +41,7 @@ esac
 
 # Create the Makefile
 cat > Makefile <<EOF
-TARGET = io-monitor
+TARGET = io-watch
 CC = $CC
 CFLAGS = -Wall -Wextra
 LDFLAGS = $LDFLAGS

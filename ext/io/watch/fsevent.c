@@ -1,4 +1,4 @@
-#include "monitor.h"
+#include "watch.h"
 
 #include <CoreServices/CoreServices.h>
 #include <dispatch/dispatch.h>
@@ -9,7 +9,7 @@ enum {
 };
 
 static
-int IO_Monitor_path_prefix(const char *path, const char *prefix) {
+int IO_Watch_path_prefix(const char *path, const char *prefix) {
 	size_t path_size = strlen(path);
 	size_t prefix_size = strlen(prefix);
 	
@@ -21,11 +21,11 @@ int IO_Monitor_path_prefix(const char *path, const char *prefix) {
 }
 
 static
-ssize_t IO_Monitor_find_path(struct IO_Monitor *monitor, const char *path) {
+ssize_t IO_Watch_find_path(struct IO_Watch *watch, const char *path) {
 	size_t index = 0;
 	
-	while (index < monitor->size) {
-		if (IO_Monitor_path_prefix(path, monitor->paths[index])) {
+	while (index < watch->size) {
+		if (IO_Watch_path_prefix(path, watch->paths[index])) {
 			return index;
 		}
 		
@@ -36,7 +36,7 @@ ssize_t IO_Monitor_find_path(struct IO_Monitor *monitor, const char *path) {
 }
 
 // Function to handle filesystem events
-void IO_Monitor_FSEvent_callback(
+void IO_Watch_FSEvent_callback(
 	ConstFSEventStreamRef streamRef,
 	void *context,
 	size_t numberOfEvents,
@@ -45,13 +45,13 @@ void IO_Monitor_FSEvent_callback(
 	const FSEventStreamEventId eventIds[]) {
 	
 	const char **eventPaths = (const char**)eventData;
-	struct IO_Monitor *monitor = context;
+	struct IO_Watch *watch = context;
 	
 	for (size_t i = 0; i < numberOfEvents; i++) {
 		if (DEBUG) fprintf(stderr, "Event: %s\n", eventPaths[i]);
 		
 		// Find the index of the path in the paths array
-		ssize_t index = IO_Monitor_find_path(monitor, eventPaths[i]);
+		ssize_t index = IO_Watch_find_path(watch, eventPaths[i]);
 		
 		if (index != -1) {
 			// Output event data as newline-delimited JSON
@@ -64,22 +64,22 @@ void IO_Monitor_FSEvent_callback(
 	fflush(stdout);
 }
 
-void IO_Monitor_watch(struct IO_Monitor *monitor) {
-	CFStringRef *pathsToWatch = malloc(sizeof(CFStringRef) * monitor->size);
-	for (size_t i = 0; i < monitor->size; i++) {
-		pathsToWatch[i] = CFStringCreateWithCString(NULL, monitor->paths[i], kCFStringEncodingUTF8);
+void IO_Watch_run(struct IO_Watch *watch) {
+	CFStringRef *pathsToWatch = malloc(sizeof(CFStringRef) * watch->size);
+	for (size_t i = 0; i < watch->size; i++) {
+		pathsToWatch[i] = CFStringCreateWithCString(NULL, watch->paths[i], kCFStringEncodingUTF8);
 	}
 	
-	CFArrayRef pathsToWatchArray = CFArrayCreate(NULL, (const void **)pathsToWatch, monitor->size, &kCFTypeArrayCallBacks);
+	CFArrayRef pathsToWatchArray = CFArrayCreate(NULL, (const void **)pathsToWatch, watch->size, &kCFTypeArrayCallBacks);
 	
-	FSEventStreamContext context = {0, monitor, NULL, NULL, NULL};
+	FSEventStreamContext context = {0, watch, NULL, NULL, NULL};
 	
 	FSEventStreamRef stream;
-	CFAbsoluteTime latency = monitor->latency;
+	CFAbsoluteTime latency = watch->latency;
 	
 	stream = FSEventStreamCreate(
 		NULL,
-		&IO_Monitor_FSEvent_callback,
+		&IO_Watch_FSEvent_callback,
 		&context,
 		pathsToWatchArray,
 		kFSEventStreamEventIdSinceNow,
@@ -99,7 +99,7 @@ void IO_Monitor_watch(struct IO_Monitor *monitor) {
 	FSEventStreamStop(stream);
 	FSEventStreamInvalidate(stream);
 	FSEventStreamRelease(stream);
-	for (size_t i = 0; i < monitor->size; i++) {
+	for (size_t i = 0; i < watch->size; i++) {
 		CFRelease(pathsToWatch[i]);
 	}
 	free(pathsToWatch);

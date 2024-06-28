@@ -3,11 +3,11 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-struct IO_Monitor {
+struct IO_Watch {
 	float latency;
 	
 	size_t size;
 	const char **paths;
 };
 
-void IO_Monitor_watch(struct IO_Monitor *monitor);
+void IO_Watch_run(struct IO_Watch *watch);
