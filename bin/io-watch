@@ -1,0 +1,27 @@
+#!/usr/bin/env ruby
+
+require 'console'
+require 'io/watch'
+
+root = Dir.pwd
+command = ARGV
+pid = nil
+signal = :INT
+
+if command.first =~ /TERM|INT|KILL|QUIT|HUP/
+	signal = command.shift
+end
+
+monitor = IO::Watch::Monitor.new([root])
+
+monitor.run do
+	if pid
+		Console.info(self, "Killing command...", pid: pid)
+		Process.kill(signal, pid)
+		Process.wait(pid)
+	end
+	
+	Console.info(self, "Starting command...")
+	pid = Process.spawn(*command)
+	Console.info(self, "Started command", pid: pid)
+end
