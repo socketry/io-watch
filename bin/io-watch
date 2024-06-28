@@ -3,7 +3,6 @@
 require 'console'
 require 'io/watch'
 
-root = Dir.pwd
 command = ARGV
 pid = nil
 signal = :INT
@@ -12,7 +11,14 @@ if command.first =~ /TERM|INT|KILL|QUIT|HUP/
 	signal = command.shift
 end
 
-monitor = IO::Watch::Monitor.new([root])
+if split = command.index('--')
+	roots = command.pop(split)
+	command.pop
+else
+	roots = [Dir.pwd]
+end
+
+monitor = IO::Watch::Monitor.new(roots)
 
 monitor.run do
 	if pid
