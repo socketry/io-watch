@@ -34,7 +34,7 @@ describe IO::Watch::Monitor do
 		File.write(test_file, 'hello')
 		
 		event = changes.pop
-		expect(event[:path]).to be == root
+		expect(event[:root]).to be == root
 	ensure
 		thread.kill
 	end
@@ -56,13 +56,13 @@ describe IO::Watch::Monitor do
 		Dir.mkdir(test_dir)
 		
 		event = changes.pop
-		expect(event[:path]).to be == root
+		expect(event[:root]).to be == root
 		
 		test_file = File.join(test_dir, 'test.txt')
 		File.write(test_file, 'hello')
 		
 		event = changes.pop
-		expect(event[:path]).to be == root
+		expect(event[:root]).to be == root
 	ensure
 		thread.kill
 	end
@@ -84,12 +84,12 @@ describe IO::Watch::Monitor do
 		Dir.mkdir(test_dir)
 		
 		event = changes.pop
-		expect(event[:path]).to be == root
+		expect(event[:root]).to be == root
 		
 		Dir.rmdir(test_dir)
 		
 		event = changes.pop
-		expect(event[:path]).to be == root
+		expect(event[:root]).to be == root
 	ensure
 		thread.kill
 	end
