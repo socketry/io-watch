@@ -67,7 +67,16 @@ ssize_t IO_Watch_Watch_Array_find(struct IO_Watch_Watch_Array *array, int watch_
 }
 
 void IO_Watch_Watch_Array_watch(int fd, struct IO_Watch_Watch_Array *watch_array, char *path, int index) {
-	int watch_descriptor = inotify_add_watch(fd, path, IN_ALL_EVENTS);
+	int mask =
+		IN_MODIFY |      // File was modified.
+		IN_ATTRIB |      // Metadata (permissions, timestamps, etc.) changed.
+		IN_CLOSE_WRITE | // Writable file was closed.
+		IN_MOVE_SELF |   // Watched file/directory was moved.
+		IN_CREATE |      // File or directory was created within the watched directory.
+		IN_DELETE;       // File or directory was deleted within the watched directory.
+	
+	int watch_descriptor = inotify_add_watch(fd, path, mask);
+	
 	if (watch_descriptor == -1) {
 		perror("io-watch:IO_Watch_Watch_Array_watch:inotify_add_watch");
 		exit(EXIT_FAILURE);
@@ -81,7 +90,7 @@ void IO_Watch_Watch_Array_watch(int fd, struct IO_Watch_Watch_Array *watch_array
 void IO_Watch_Watch_Array_scan(int fd, struct IO_Watch_Watch_Array *watch_array, const char *root, int index) {
 	DIR *dir = opendir(root);
 	if (!dir) {
-		perror("opendir");
+		perror("io-watch:IO_Watch_Watch_Array_scan:opendir");
 		return;
 	}
 	
@@ -97,7 +106,7 @@ void IO_Watch_Watch_Array_scan(int fd, struct IO_Watch_Watch_Array *watch_array,
 		
 		struct stat statbuf;
 		if (stat(path, &statbuf) == -1) {
-			perror("stat");
+			perror("io-watch:IO_Watch_Watch_Array_scan:stat");
 			continue;
 		}
 		
@@ -138,7 +147,7 @@ void IO_Watch_Watch_Array_remove(int fd, struct IO_Watch_Watch_Array *watch_arra
 
 static
 void IO_Watch_INotify_print_event(struct inotify_event *event) {
-	fprintf(stderr, "io-watch:IO_Watch_INotify_print_event: Event wd=%d", event->wd);
+	fprintf(stderr, "Event wd=%d", event->wd);
 	
 	uint32_t mask = event->mask;
 	if (mask & IN_ACCESS) fprintf(stderr, " ACCESS");
@@ -198,13 +207,17 @@ void IO_Watch_run(struct IO_Watch *watch) {
 		
 		for (ssize_t offset = 0; offset < result;) {
 			struct inotify_event *event = (struct inotify_event *) &buffer[offset];
-			if (DEBUG) IO_Watch_INotify_print_event(event);
+			if (DEBUG) {
+				fprintf(stderr, "io-watch:IO_Watch_run: ");
+				IO_Watch_INotify_print_event(event);
+			}
 			
 			if (event->wd == -1) {
 				if (event->mask & IN_Q_OVERFLOW) {
 					fprintf(stderr, "io-watch:IO_Watch_run: Queue overflow\n");
 				} else {
-					fprintf(stderr, "io-watch:IO_Watch_run: Unknown error %u\n", event->mask);
+					fprintf(stderr, "io-watch:IO_Watch_run: Unknown error ");
+					IO_Watch_INotify_print_event(event);
 				}
 				break;
 			}

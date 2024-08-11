@@ -35,6 +35,18 @@ ssize_t IO_Watch_find_path(struct IO_Watch *watch, const char *path) {
 	return -1;
 }
 
+inline static int IO_Watch_FSEvent_modification_flags(FSEventStreamEventFlags flags) {
+	return flags & (
+		kFSEventStreamEventFlagItemCreated |      // The item was created.
+		kFSEventStreamEventFlagItemRemoved |      // The item was removed.
+		kFSEventStreamEventFlagItemRenamed |      // The item was renamed.
+		kFSEventStreamEventFlagItemModified |     // The item was modified.
+		kFSEventStreamEventFlagItemInodeMetaMod | // The item's inode metadata was modified.
+		kFSEventStreamEventFlagItemChangeOwner |  // The item's ownership was changed.
+		kFSEventStreamEventFlagItemXattrMod       // The item's extended attributes were modified.
+	);
+}
+
 // Function to handle filesystem events
 void IO_Watch_FSEvent_callback(
 	ConstFSEventStreamRef streamRef,
@@ -49,6 +61,11 @@ void IO_Watch_FSEvent_callback(
 	
 	for (size_t i = 0; i < numberOfEvents; i++) {
 		if (DEBUG) fprintf(stderr, "io-watch:IO_Watch_FSEvent_callback: Event %s\n", eventPaths[i]);
+		
+		// Ignore events which don't represent modifications:
+		if (IO_Watch_FSEvent_modification_flags(eventFlags[i]) == 0) {
+			continue;
+		}
 		
 		// Find the index of the path in the paths array
 		ssize_t index = IO_Watch_find_path(watch, eventPaths[i]);
