@@ -93,4 +93,29 @@ describe IO::Watch::Monitor do
 	ensure
 		thread.kill
 	end
+	
+	it "should ignore file accesses" do
+		# Create a test file:
+		test_file = File.join(root, 'test.txt')
+		File.write(test_file, 'hello')
+		
+		changes = Thread::Queue.new
+		
+		# Start watching the directory:
+		thread = Thread.new do
+			watch = subject.new([root])
+			watch.run do |event|
+				changes << event
+			end
+		end
+		
+		# Wait for the watch to start...
+		changes.pop
+		
+		File.read(test_file)
+		
+		expect(changes).to be(:empty?)
+	ensure
+		thread.kill
+	end
 end
