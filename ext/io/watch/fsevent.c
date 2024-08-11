@@ -48,7 +48,7 @@ void IO_Watch_FSEvent_callback(
 	struct IO_Watch *watch = context;
 	
 	for (size_t i = 0; i < numberOfEvents; i++) {
-		if (DEBUG) fprintf(stderr, "Event: %s\n", eventPaths[i]);
+		if (DEBUG) fprintf(stderr, "io-watch:IO_Watch_FSEvent_callback: Event %s\n", eventPaths[i]);
 		
 		// Find the index of the path in the paths array
 		ssize_t index = IO_Watch_find_path(watch, eventPaths[i]);
@@ -57,7 +57,7 @@ void IO_Watch_FSEvent_callback(
 			// Output event data as newline-delimited JSON
 			printf("{\"index\":%zu,\"flags\":%u,\"id\":%llu}\n", index, eventFlags[i], eventIds[i]);
 		} else {
-			fprintf(stderr, "Path not found in paths array: %s\n", eventPaths[i]);
+			fprintf(stderr, "io-watch:IO_Watch_FSEvent_callback: Path not found %s\n", eventPaths[i]);
 		}
 	}
 	

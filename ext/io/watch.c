@@ -27,10 +27,10 @@ int main(int argc, char **argv) {
 	for (size_t i = 0; i < watch.size; i++) {
 		char *real_path = realpath(watch.paths[i], NULL);
 		if (real_path == NULL) {
-			fprintf(stderr, "Error: realpath failed for %s\n", watch.paths[i]);
+			fprintf(stderr, "io-watch:main: Realpath failed for %s\n", watch.paths[i]);
 			return 1;
 		} else {
-			if (DEBUG) fprintf(stderr, "Watching: %s\n", real_path);
+			if (DEBUG) fprintf(stderr, "io-watch:main: Watching %s\n", real_path);
 			watch.paths[i] = real_path;
 		}
 	}
