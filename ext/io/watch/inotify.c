@@ -241,7 +241,7 @@ void IO_Watch_run(struct IO_Watch *watch) {
 		}
 		fflush(stdout);
 	}
-
+	
 	for (size_t i = 0; i < watch_array.size; i++) {
 		inotify_rm_watch(fd, watch_array.watches[i].watch_descriptor);
 		free(watch_array.watches[i].path);
