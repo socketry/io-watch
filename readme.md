@@ -4,6 +4,10 @@ Monitor the file-system for changes.
 
 [![Development Status](https://github.com/socketry/io-watch/workflows/Test/badge.svg)](https://github.com/socketry/io-watch/actions?workflow=Test)
 
+## Motivation
+
+Previously, I was using the `listen` gem in combination with `rb-inotify` or `rb-fsevent` to watch for file-system changes. However, those libraries have been around for an extremely long time and have accumulated a lot of cruft. In addition, I don't like having to multiplex in application code depending on the underlying platform. I created this library to provide a simple, unified interface for watching directories for changes. This is the most consistently supported behaviour across all platforms, and fits the needs of most applications without a huge amount of complexity.
+
 ## Usage
 
 Please see the [project documentation](https://socketry.github.io/io-watch/) for more details.
