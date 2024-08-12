@@ -6,8 +6,11 @@
 require_relative 'watch/version'
 require_relative 'watch/monitor'
 
+# @namespace
 class IO
+	# @namespace
 	module Watch
+		# Create a new monitor.
 		def self.new(...)
 			Monitor.new(...)
 		end

@@ -7,7 +7,7 @@ Gem::Specification.new do |spec|
 	spec.version = IO::Watch::VERSION
 	
 	spec.summary = "A tool for watching changes to the filesystem."
-	spec.authors = ["Samuel Williams"]
+	spec.authors = ["Samuel Williams", "Étienne Barrié"]
 	spec.license = "MIT"
 	
 	spec.cert_chain  = ['release.cert']
@@ -23,7 +23,7 @@ Gem::Specification.new do |spec|
 	spec.files = Dir['{bin,ext,lib}/**/*', '*.md', base: __dir__]
 	spec.require_paths = ['lib']
 	
-	spec.executables = ['io-watch']
+	spec.executables = ["io-watch"]
 	
 	spec.extensions = ["ext/configure"]
 	

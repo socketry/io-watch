@@ -8,11 +8,13 @@ source 'https://rubygems.org'
 gemspec
 
 group :test do
+	gem "sus"
+	gem "covered"
+	gem "decode"
+	gem "rubocop"
+	
 	gem "bake-test"
 	gem "bake-test-external"
-	
-	gem "covered"
-	gem "sus"
 end
 
 group :maintenance, optional: true do
