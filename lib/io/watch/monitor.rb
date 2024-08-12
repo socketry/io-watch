@@ -9,6 +9,7 @@ class IO
 	module Watch
 		# Represents a list of roots to watch for changes.
 		class Monitor
+			# The path to the compiled `io-watch` command.
 			def self.command_path
 				if extension_path = Gem.loaded_specs['io-watch']&.extension_dir
 					if File.exist?(extension_path)
