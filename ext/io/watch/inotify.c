@@ -9,6 +9,8 @@
 #include <dirent.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
+#include <poll.h>
 
 enum {
 	DEBUG = 0,
@@ -18,11 +20,16 @@ struct IO_Watch_Watch {
 	int watch_descriptor;
 	char *path;
 	int index;
+	
+	int modified;
 };
 
 struct IO_Watch_Watch_Array {
 	size_t size;
 	size_t capacity;
+	
+	size_t pending;
+	
 	struct IO_Watch_Watch *watches;
 };
 
@@ -31,6 +38,7 @@ struct IO_Watch_Watch_Array {
 void IO_Watch_Watch_Array_initialize(struct IO_Watch_Watch_Array *array) {
 	array->size = 0;
 	array->capacity = 16;
+	array->pending = 0;
 	array->watches = malloc(array->capacity * sizeof(struct IO_Watch_Watch));
 	if (!array->watches) {
 		perror("io-watch:IO_Watch_Watch_Array_initialize:malloc");
@@ -176,6 +184,46 @@ void IO_Watch_INotify_print_event(struct inotify_event *event) {
 	fprintf(stderr, "\n");
 }
 
+static size_t IO_Watch_INotify_flush_events(struct IO_Watch_Watch_Array watch_array) {
+	size_t count = 0;
+	
+	if (watch_array.pending == 0) {
+		return 0;
+	}
+	
+	for (size_t i = 0; i < watch_array.size; i++) {
+		int modified = watch_array.watches[i].modified;
+		if (modified) {
+			count++;
+			
+			printf("{\"index\":%d,\"mask\":%u}\n", watch_array.watches[i].index, modified);
+			watch_array.watches[i].modified = 0;
+		}
+	}
+	
+	watch_array.pending = 0;
+	
+	fflush(stdout);
+	
+	if (DEBUG) fprintf(stderr, "io-watch:IO_Watch_INotify_flush_events: Flushed %zu events\n", count);
+	
+	return count;
+}
+
+static float IO_Watch_handle_timeout(float latency, struct timespec *start_time) {
+	if (start_time) {
+		struct timespec current_time;
+		clock_gettime(CLOCK_MONOTONIC, &current_time);
+		
+		float delta = current_time.tv_sec - start_time->tv_sec;
+		delta += (current_time.tv_nsec - start_time->tv_nsec) / 1e9;
+		
+		return latency - delta;
+	} else {
+		return 0.0;
+	}
+}
+
 void IO_Watch_run(struct IO_Watch *watch) {
 	int fd = inotify_init1(IN_NONBLOCK);
 	if (fd == -1) {
@@ -193,16 +241,60 @@ void IO_Watch_run(struct IO_Watch *watch) {
 		IO_Watch_Watch_Array_scan(fd, &watch_array, path, i);
 	}
 	
+	float latency = watch->latency;
+	
+	// If start_time is non-null, it means we are now coallescing events, up to the specified latency:
+	struct timespec start_time_buffer, *start_time = NULL;
+	
 	printf("{\"status\":\"started\"}\n");
 	fflush(stdout);
 	
 	char buffer[BUFFER_SIZE] __attribute__ ((aligned(8)));
 	
 	while (1) {
+		// Check for any events:
 		ssize_t result = read(fd, buffer, BUFFER_SIZE);
-		if (result == -1 && errno != EAGAIN) {
-			perror("(io-watch:IO_Watch_run:read)");
-			exit(EXIT_FAILURE);
+		
+		// Calculate the timeout, if any:
+		float timeout = IO_Watch_handle_timeout(latency, start_time);
+		
+		// We need to check if the timeout has expired:
+		if (timeout < 0.0) {
+			if (DEBUG) fprintf(stderr, "io-watch:IO_Watch_run: Timeout expired\n");
+			
+			start_time = NULL;
+			// Flush any pending events:
+			IO_Watch_INotify_flush_events(watch_array);
+		}
+		
+		// If no events are available, we have to wait for the timeout:
+		if (result == -1) {
+			if (errno != EAGAIN && errno != EWOULDBLOCK) {
+				perror("(io-watch:IO_Watch_run:read)");
+				exit(EXIT_FAILURE);
+			}
+			
+			if (DEBUG) fprintf(stderr, "io-watch:IO_Watch_run: No events available, waiting for %0.4f seconds\n", timeout);
+			
+			// Wait until the file descriptor becomes readable:
+			struct pollfd poll_fd = {fd, POLLIN, 0};
+			int poll_timeout = start_time ? (int) (timeout * 1e3) : -1;
+			
+			// If we have a timeout of 0.0, we have to poll for at least 1 ms:
+			if (poll_timeout == 0 && timeout > 0.0) {
+				poll_timeout = 1;
+			}
+			
+			if (DEBUG) fprintf(stderr, "io-watch:IO_Watch_run:poll: Polling for %d ms\n", poll_timeout);
+			poll(&poll_fd, 1, poll_timeout);
+			continue;
+		}
+		
+		// If we have received events, we have to set the start_time if it is not set:
+		if (!start_time) {
+			if (DEBUG) fprintf(stderr, "io-watch:IO_Watch_run: Setting start_time\n");
+			start_time = &start_time_buffer;
+			clock_gettime(CLOCK_MONOTONIC, start_time);
 		}
 		
 		for (ssize_t offset = 0; offset < result;) {
@@ -225,7 +317,9 @@ void IO_Watch_run(struct IO_Watch *watch) {
 			ssize_t index = IO_Watch_Watch_Array_find(&watch_array, event->wd);
 			
 			if (index != -1) {
-				printf("{\"index\":%d,\"mask\":%u}\n", watch_array.watches[index].index, event->mask);
+				if (DEBUG) fprintf(stderr, "io-watch:IO_Watch_run: Modified path %s mask=%d\n", watch_array.watches[index].path, event->mask);
+				watch_array.watches[index].modified |= event->mask;
+				watch_array.pending += 1;
 				
 				// If a new directory is created, add a watch for it
 				if (event->mask & IN_CREATE && event->mask & IN_ISDIR) {
@@ -239,7 +333,6 @@ void IO_Watch_run(struct IO_Watch *watch) {
 			
 			offset += sizeof(struct inotify_event) + event->len;
 		}
-		fflush(stdout);
 	}
 	
 	for (size_t i = 0; i < watch_array.size; i++) {

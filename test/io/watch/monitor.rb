@@ -118,4 +118,29 @@ describe IO::Watch::Monitor do
 	ensure
 		thread.kill
 	end
+	
+	it "coallesce multiple events" do
+		changes = Thread::Queue.new
+		
+		thread = Thread.new do
+			watch = subject.new([root])
+			watch.run do |event|
+				changes << event
+			end
+		end
+		
+		# Wait for the watch to start...
+		changes.pop
+		
+		test_file = File.join(root, 'test.txt')
+		File.write(test_file, 'hello')
+		File.write(test_file, 'world')
+		
+		event = changes.pop
+		expect(event[:root]).to be == root
+		
+		expect(changes).to be(:empty?)
+	ensure
+		thread.kill
+	end
 end
