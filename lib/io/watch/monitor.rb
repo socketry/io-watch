@@ -49,7 +49,8 @@ class IO
 				end
 				
 				IO.pipe do |input, output|
-					pid = Process.spawn(environment, self.class.command_path, *@roots, out: output)
+					# Don't leak inheritable descriptors (e.g. a server socket) into the helper:
+					pid = Process.spawn(environment, self.class.command_path, *@roots, out: output, close_others: true)
 					output.close
 					
 					input.each_line do |line|

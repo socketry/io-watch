@@ -143,4 +143,31 @@ describe IO::Watch::Monitor do
 	ensure
 		thread.kill
 	end
+	
+	it "does not leak inheritable file descriptors into the helper" do
+		# For example, a server socket bound with `close_on_exec: false`:
+		input, output = IO.pipe
+		output.close_on_exec = false
+		
+		changes = Thread::Queue.new
+		
+		thread = Thread.new do
+			watch = subject.new([root])
+			watch.run do |event|
+				changes << event
+			end
+		end
+		
+		# Wait for the watch to start...
+		changes.pop
+		
+		# If the helper inherited the write end, this would never reach EOF:
+		output.close
+		expect(input.wait_readable(1)).to be_truthy
+		expect(input.read_nonblock(1, exception: false)).to be_nil
+	ensure
+		thread.kill
+		input&.close
+		output&.close
+	end
 end
