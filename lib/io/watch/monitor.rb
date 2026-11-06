@@ -64,14 +64,16 @@ class IO
 					end
 				ensure
 					if pid
+						# KILL rather than TERM: if the parent ignores TERM, so does the helper, and the
+						# wait below would never return. The helper has nothing to clean up.
 						begin
-							Process.kill('TERM', pid)
-						rescue Errno::ESRCH
-							# Already exited.
+							Process.kill(:KILL, pid)
+							
+							# Reap the helper, so it isn't left behind as a zombie:
+							Process.wait(pid)
+						rescue Errno::ESRCH, Errno::ECHILD
+							# Already reaped, e.g. by `Process.detach` or with SIGCHLD ignored.
 						end
-						
-						# Reap the helper, so it isn't left behind as a zombie:
-						Process.wait(pid)
 					end
 				end
 			end
