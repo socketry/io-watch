@@ -49,7 +49,8 @@ class IO
 				end
 				
 				IO.pipe do |input, output|
-					pid = Process.spawn(environment, self.class.command_path, *@roots, out: output)
+					# Don't leak inheritable descriptors (e.g. a server socket) into the helper:
+					pid = Process.spawn(environment, self.class.command_path, *@roots, out: output, close_others: true)
 					output.close
 					
 					input.each_line do |line|
@@ -62,7 +63,18 @@ class IO
 						yield event
 					end
 				ensure
-					Process.kill('TERM', pid) if pid
+					if pid
+						# KILL rather than TERM: if the parent ignores TERM, so does the helper, and the
+						# wait below would never return. The helper has nothing to clean up.
+						begin
+							Process.kill(:KILL, pid)
+							
+							# Reap the helper, so it isn't left behind as a zombie:
+							Process.wait(pid)
+						rescue Errno::ESRCH, Errno::ECHILD
+							# Already reaped, e.g. by `Process.detach` or with SIGCHLD ignored.
+						end
+					end
 				end
 			end
 		end

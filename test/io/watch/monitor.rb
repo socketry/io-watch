@@ -143,4 +143,81 @@ describe IO::Watch::Monitor do
 	ensure
 		thread.kill
 	end
+	
+	it "does not leak inheritable file descriptors into the helper" do
+		# For example, a server socket bound with `close_on_exec: false`:
+		input, output = IO.pipe
+		output.close_on_exec = false
+		
+		changes = Thread::Queue.new
+		
+		thread = Thread.new do
+			watch = subject.new([root])
+			watch.run do |event|
+				changes << event
+			end
+		end
+		
+		# Wait for the watch to start...
+		changes.pop
+		
+		# If the helper inherited the write end, this would never reach EOF:
+		output.close
+		expect(input.wait_readable(1)).to be_truthy
+		expect(input.read_nonblock(1, exception: false)).to be_nil
+	ensure
+		thread.kill
+		thread.join
+		input&.close
+		output&.close
+	end
+	
+	it "reaps the helper when stopped" do
+		pid = nil
+		mock(Process) do |mock|
+			mock.wrap(:spawn) do |original, *arguments, **options|
+				pid = original.call(*arguments, **options)
+			end
+		end
+		
+		# Stop on the first event, which arrives once the watch has started:
+		subject.new([root]).run{break}
+		
+		# Already waited for, so it is not left behind as a zombie:
+		expect{Process.waitpid(pid, Process::WNOHANG)}.to raise_exception(Errno::ECHILD)
+	end
+	
+	it "stops even if the parent ignores TERM" do
+		# An ignored signal stays ignored across exec, so the helper would ignore TERM too:
+		previous = trap(:TERM, "IGNORE")
+		
+		thread = Thread.new do
+			subject.new([root]).run{break}
+		end
+		
+		expect(thread.join(5)).to be_truthy
+	ensure
+		trap(:TERM, previous)
+		thread&.kill
+	end
+	
+	it "stops cleanly if the helper was already reaped" do
+		pid = reaper = nil
+		mock(Process) do |mock|
+			mock.wrap(:spawn) do |original, *arguments, **options|
+				pid = original.call(*arguments, **options)
+				reaper = Process.detach(pid)
+				pid
+			end
+		end
+		
+		expect do
+			subject.new([root]).run do
+				# Something else reaps the helper before the monitor stops:
+				Process.kill(:KILL, pid)
+				reaper.join
+				break
+			end
+		end.not.to raise_exception
+	end
 end
