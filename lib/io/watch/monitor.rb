@@ -63,7 +63,16 @@ class IO
 						yield event
 					end
 				ensure
-					Process.kill('TERM', pid) if pid
+					if pid
+						begin
+							Process.kill('TERM', pid)
+						rescue Errno::ESRCH
+							# Already exited.
+						end
+						
+						# Reap the helper, so it isn't left behind as a zombie:
+						Process.wait(pid)
+					end
 				end
 			end
 		end

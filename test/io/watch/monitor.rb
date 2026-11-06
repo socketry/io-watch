@@ -170,4 +170,19 @@ describe IO::Watch::Monitor do
 		input&.close
 		output&.close
 	end
+	
+	it "reaps the helper when stopped" do
+		pid = nil
+		mock(Process) do |mock|
+			mock.wrap(:spawn) do |original, *arguments, **options|
+				pid = original.call(*arguments, **options)
+			end
+		end
+		
+		# Stop on the first event, which arrives once the watch has started:
+		subject.new([root]).run{break}
+		
+		# Already waited for, so it is not left behind as a zombie:
+		expect{Process.waitpid(pid, Process::WNOHANG)}.to raise_exception(Errno::ECHILD)
+	end
 end
